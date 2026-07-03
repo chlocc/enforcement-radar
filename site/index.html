@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enforcement Radar</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: #060D18; display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
+  #era { background: #0B1422; border-radius: 14px; overflow: hidden; color: #fff; width: 100%; max-width: 1100px; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .tp { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; border-radius: 20px; border: .5px solid rgba(255,255,255,.12); background: transparent; color: rgba(255,255,255,.42); cursor: pointer; font-size: 12px; letter-spacing: .02em; font-family: inherit; transition: all .15s; }
+  .tp:hover { border-color: rgba(255,255,255,.28); color: rgba(255,255,255,.75); }
+  .tp.on { border-color: transparent; color: #fff; }
+  .tp .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .fi { padding: 11px 0; border-bottom: .5px solid rgba(255,255,255,.05); cursor: pointer; }
+  .fi:last-child { border-bottom: none; }
+  .fi.hi { background: rgba(255,255,255,.04); border-radius: 5px; padding: 11px 8px; margin: 0 -8px; }
+  .fi:hover { opacity: .85; }
+  .fi.dimmed { opacity: .22; pointer-events: none; }
+
+  .tr { display: grid; grid-template-columns: 72px 88px 100px 1fr 72px 100px; gap: 10px; padding: 8px 0; border-bottom: .5px solid rgba(255,255,255,.05); align-items: start; font-size: 12px; cursor: pointer; }
+  .tr:hover { background: rgba(255,255,255,.025); }
+  .tr.dimmed { opacity: .2; pointer-events: none; }
+  .th span { color: rgba(255,255,255,.22); text-transform: uppercase; letter-spacing: .07em; font-size: 10px; }
+  #feedScroll { overflow-y: auto; height: 420px; }
+  #feedScroll::-webkit-scrollbar { width: 3px; }
+  #feedScroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+
+  .topic-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; }
+  .empty-state { padding: 60px 24px; text-align: center; color: rgba(255,255,255,.3); font-size: 13px; line-height: 1.7; }
+  .empty-state code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 4px; color: rgba(255,255,255,.55); }
+</style>
+</head>
+<body>
+<div id="era">
+
+  <div style="padding:22px 28px 15px;border-bottom:.5px solid rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+      <span style="font-size:22px;font-weight:500;letter-spacing:-.4px">Enforcement</span>
+      <span style="font-size:22px;font-weight:400;color:#C9A84C;letter-spacing:-.4px;font-style:italic">radar.</span>
+    </div>
+    <p style="font-size:12px;color:rgba(255,255,255,.28)">Live feed from SEC, CFTC, and DOJ press releases &nbsp;·&nbsp; agency = sector &nbsp;·&nbsp; recency = radius &nbsp;·&nbsp; center = today &nbsp;·&nbsp; outer ring = 7 days &nbsp;·&nbsp; click any dot to lock selection</p>
+  </div>
+
+  <div id="topicBar" style="padding:12px 28px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-right:4px">Topic</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 300px">
+    <div style="position:relative;border-right:.5px solid rgba(255,255,255,.06)">
+      <canvas id="rc" style="display:block;width:100%;height:420px"></canvas>
+    </div>
+    <div style="display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:12px 16px 10px;border-bottom:.5px solid rgba(255,255,255,.05);flex-shrink:0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;display:inline-block;animation:blink 2s infinite"></span>
+            <span style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.35);text-transform:uppercase">Recent activity</span>
+          </div>
+          <span id="feedCount" style="font-size:10px;color:rgba(255,255,255,.18)"></span>
+        </div>
+      </div>
+      <div id="feedScroll" style="padding:0 16px;flex:1"><div id="feedItems"></div></div>
+    </div>
+  </div>
+
+  <div style="border-top:.5px solid rgba(255,255,255,.06);padding:22px 28px 28px">
+    <div id="mc" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px"></div>
+    <div id="tb"></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+/* ── TOPIC BUCKETS ─────────────────────────────────────────── */
+const TOPICS = [
+  { id: 'all', label: 'All items', color: '#888780', keywords: [] },
+  { id: 'crypto', label: 'Crypto / Digital Asset', color: '#AFA9EC',
+    keywords: ['crypto','digital asset','blockchain','stablecoin','token','defi','virtual currency','digital currency','nft','web3','bitcoin','ethereum'] },
+  { id: 'genius', label: 'GENIUS Act / Stablecoins', color: '#5DCAA5',
+    keywords: ['genius act','genius','stablecoin legislation','stablecoin regulation','payment stablecoin'] },
+  { id: 'derivatives', label: 'Derivatives / Swaps', color: '#EF9F27',
+    keywords: ['swap','derivatives','futures','clearing','margin','isda','ccp','central counterparty','uncleared','portfolio margining','cross-margin','security-based swap'] },
+  { id: 'commodities', label: 'Commodities / Prediction Markets', color: '#E24B4A',
+    keywords: ['commodity','dcm','dco','fcm','sef','event contract','prediction market','designated contract market','futures commission','swap execution','off-exchange','leveraged','eligible contract participant'] },
+];
+
+/* ── AGENCY CONFIG — matches scraper/feeds.py FEEDS list ───── */
+const AG = [
+  {id:'SEC',    label:'SEC',    angle:18,  live:true},
+  {id:'CFTC',   label:'CFTC',   angle:90,  live:true},
+  {id:'DOJ',    label:'DOJ',    angle:162, live:true},
+  {id:'OFAC',   label:'OFAC',   angle:234, live:false},
+  {id:'FinCEN', label:'FinCEN', angle:306, live:false},
+];
+
+const CATS = {
+  'enforcement':  {color:'#E24B4A', label:'Enforcement'},
+  'proposed-rule':{color:'#EF9F27', label:'Proposed rule'},
+  'final-rule':   {color:'#5DCAA5', label:'Final rule'},
+  'litigation':   {color:'#F09595', label:'Litigation'},
+  'guidance':     {color:'#85B7EB', label:'Guidance'},
+  'report':       {color:'#B4B2A9', label:'Report'},
+  'legislative':  {color:'#AFA9EC', label:'Legislative'},
+};
+
+/* ── STATE ─────────────────────────────────────────────────── */
+const agMap = Object.fromEntries(AG.map(a => [a.id, a]));
+let ITEMS = [];
+let selId = null;
+let activeTopic = 'all';
+let dots = [];
+
+/* ── CLASSIFY (rule-based, deterministic — no invented urgency) ─
+   Category/urgency are inferred from title keywords only. This is a
+   first-pass heuristic: RSS titles rarely carry deadlines, so
+   `deadline` stays null until a full-text fetch step is added. */
+function classify(title) {
+  const t = title.toLowerCase();
+  if (/\bsues?\b|lawsuit|files? suit|complaint filed/.test(t)) return {category:'litigation', urgency:'high'};
+  if (/charge[sd]?\b|enforcement action|penalt|settle[sd]?\b|orders?.*to pay|fined|pleads? guilty|sentenced|indict/.test(t)) return {category:'enforcement', urgency:'high'};
+  if (/propose[sd]?\b|seeks? (public )?comment|notice of proposed|nprm|request for comment/.test(t)) return {category:'proposed-rule', urgency:'medium'};
+  if (/final rule|adopts? rule|adopted rule/.test(t)) return {category:'final-rule', urgency:'high'};
+  if (/hearing|markup|introduce[sd]?\b|\bbill\b/.test(t)) return {category:'legislative', urgency:'medium'};
+  if (/report|stress test|\bstudy\b/.test(t)) return {category:'report', urgency:'medium'};
+  return {category:'guidance', urgency:'low'};
+}
+
+function rawToItem(r, idx) {
+  const {category, urgency} = classify(r.title || '');
+  const pub = r.published_iso ? new Date(r.published_iso) : null;
+  const daysAgo = pub ? Math.floor((Date.now() - pub.getTime()) / 86400000) : null;
+  return {
+    id: idx + 1,
+    agency: r.agency,
+    date: pub ? pub.toISOString().slice(0, 10) : '',
+    daysAgo,
+    category, urgency,
+    title: r.title,
+    text: (r.title || '').toLowerCase(),
+    deadline: null,
+    link: r.link,
+  };
+}
+
+function getItemTopics(item) {
+  const haystack = item.title.toLowerCase() + ' ' + item.text;
+  return TOPICS.filter(t => t.id !== 'all' && t.keywords.some(kw => haystack.includes(kw)));
+}
+
+async function loadFeed() {
+  try {
+    const res = await fetch('./data/feed.json', {cache: 'no-store'});
+    if (!res.ok) throw new Error('feed.json not found');
+    const raw = await res.json();
+    const items = raw
+      .map(rawToItem)
+      .filter(it => it.daysAgo !== null && it.daysAgo >= 0 && it.daysAgo <= 7);
+    items.forEach(it => { it.topics = getItemTopics(it); });
+    return items;
+  } catch (e) {
+    console.warn('Could not load feed.json:', e.message);
+    return [];
+  }
+}
+
+function visibleItems() {
+  if (activeTopic === 'all') return ITEMS;
+  return ITEMS.filter(it => it.topics.some(t => t.id === activeTopic));
+}
+
+/* ── RADAR ─────────────────────────────────────────────────── */
+function toRad(d) { return (d - 90) * Math.PI / 180; }
+
+function drawRadar() {
+  const cv = document.getElementById('rc');
+  const W = cv.offsetWidth, H = cv.offsetHeight;
+  if (!W || !H) return;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.min(W, H) * 0.38, minR = 22;
+  const sectorSize = 360 / AG.length;
+  const vis = visibleItems();
+
+  AG.forEach(ag => {
+    const s = toRad(ag.angle - sectorSize/2), e = toRad(ag.angle + sectorSize/2);
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, maxR + 8, s, e); ctx.closePath();
+    ctx.fillStyle = ag.live ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.008)';
+    ctx.fill();
+  });
+
+  AG.forEach(ag => {
+    const a = toRad(ag.angle - sectorSize/2);
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * (maxR + 8), cy + Math.sin(a) * (maxR + 8));
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = .5; ctx.stroke();
+  });
+
+  for (let d = 1; d <= 7; d++) {
+    const r = minR + (d / 7) * (maxR - minR);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = d === 7 ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.055)';
+    ctx.lineWidth = .5; ctx.setLineDash(d < 7 ? [2, 4] : []); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fill();
+
+  ctx.font = '9px -apple-system,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('today', cx, cy + 5);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('7d', cx, cy - maxR + 14);
+
+  ctx.font = '11px -apple-system,sans-serif'; ctx.textBaseline = 'middle';
+  AG.forEach(ag => {
+    const a = toRad(ag.angle);
+    const lx = cx + Math.cos(a) * (maxR + 22), ly = cy + Math.sin(a) * (maxR + 22);
+    ctx.fillStyle = ag.live ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.18)';
+    ctx.fillText(ag.label, lx, ly);
+    if (!ag.live) {
+      ctx.font = '8.5px -apple-system,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.12)';
+      ctx.fillText('not wired', lx, ly + 13);
+      ctx.font = '11px -apple-system,sans-serif';
+    }
+  });
+
+  dots = [];
+  const buckets = {};
+  ITEMS.forEach(it => { const k = `${it.agency}_${it.daysAgo}`; if (!buckets[k]) buckets[k] = []; buckets[k].push(it.id); });
+
+  ITEMS.forEach(it => {
+    const ag = agMap[it.agency]; if (!ag) return;
+    const isVis = vis.includes(it);
+    const k = `${it.agency}_${it.daysAgo}`;
+    const bk = buckets[k], idx = bk.indexOf(it.id), tot = bk.length;
+    const spread = Math.min(16, tot * 5.5);
+    const off = tot > 1 ? (idx - (tot - 1) / 2) * (spread / Math.max(tot - 1, 1)) : 0;
+    const aRad = toRad(ag.angle + off);
+    const r = minR + (it.daysAgo / 7) * (maxR - minR);
+    const x = cx + Math.cos(aRad) * r, y = cy + Math.sin(aRad) * r;
+    const cat = CATS[it.category], isSel = it.id === selId, dr = isSel ? 8 : 5.5;
+
+    if (!isVis) {
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
+      return;
+    }
+
+    if (isSel) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 18);
+      g.addColorStop(0, cat.color + '45'); g.addColorStop(1, cat.color + '00');
+      ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+    }
+    if (it.urgency === 'high') {
+      ctx.beginPath(); ctx.arc(x, y, dr + 4.5, 0, Math.PI * 2);
+      ctx.strokeStyle = cat.color + '55'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(x, y, dr, 0, Math.PI * 2);
+    ctx.fillStyle = isSel ? cat.color : cat.color + 'BB'; ctx.fill();
+    dots.push({ it, x, y, hr: dr + 6 });
+  });
+
+  let ly2 = H - 12;
+  ctx.textAlign = 'left'; ctx.font = '9.5px -apple-system,sans-serif';
+  Object.entries(CATS).reverse().forEach(([, c]) => {
+    ctx.beginPath(); ctx.arc(14, ly2 - 3, 4, 0, Math.PI * 2);
+    ctx.fillStyle = c.color + 'CC'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.32)';
+    ctx.fillText(c.label, 22, ly2); ly2 -= 16;
+  });
+}
+
+/* ── TOPIC FILTER BAR ──────────────────────────────────────── */
+function renderTopicBar() {
+  const bar = document.getElementById('topicBar');
+  const label = bar.querySelector('span');
+  bar.innerHTML = '';
+  bar.appendChild(label);
+
+  TOPICS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tp' + (activeTopic === t.id ? ' on' : '');
+    if (activeTopic === t.id && t.id !== 'all') {
+      btn.style.background = t.color + '22';
+      btn.style.borderColor = t.color + '66';
+      btn.style.color = t.color;
+    }
+    const count = t.id === 'all' ? ITEMS.length : ITEMS.filter(it => it.topics.some(tp => tp.id === t.id)).length;
+    btn.innerHTML = t.id !== 'all'
+      ? `<span class="dot" style="background:${t.color}"></span>${t.label} <span style="opacity:.5;font-size:10px">${count}</span>`
+      : `${t.label} <span style="opacity:.5;font-size:10px">${count}</span>`;
+    btn.onclick = () => setTopic(t.id);
+    bar.appendChild(btn);
+  });
+}
+
+/* ── FEED ──────────────────────────────────────────────────── */
+function renderFeed(hid) {
+  const vis = visibleItems();
+  const sorted = [...ITEMS].sort((a, b) => a.daysAgo - b.daysAgo);
+  const el = document.getElementById('feedItems');
+
+  if (ITEMS.length === 0) {
+    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch live SEC / CFTC / DOJ press releases into <code>site/data/feed.json</code>, then reload this page.</div>`;
+    document.getElementById('feedCount').textContent = '';
+    return;
+  }
+
+  el.innerHTML = sorted.map(it => {
+    const cat = CATS[it.category], isHi = it.id === hid;
+    const isDimmed = !vis.includes(it);
+    const d = new Date(it.date);
+    const mo = d.toLocaleString('en-US', {month: 'short'}).toUpperCase();
+    const lbl = it.daysAgo === 0 ? `${mo} ${d.getDate()} · Today` : `${mo} ${d.getDate()}`;
+    const topicTags = it.topics.map(t =>
+      `<span class="topic-tag" style="background:${t.color}18;color:${t.color}CC;border:.5px solid ${t.color}35">${t.label}</span>`
+    ).join('');
+    return `<div class="fi${isHi ? ' hi' : ''}${isDimmed ? ' dimmed' : ''}" data-id="${it.id}" onclick="eraSelect(${it.id})">
+      <div style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">${lbl}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.45;margin-bottom:7px">${it.title}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid rgba(201,168,76,.35);color:rgba(201,168,76,.75)">${it.agency}</span>
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid ${cat.color}40;color:${cat.color}BB">${cat.label}</span>
+        ${topicTags}
+        ${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);text-decoration:none">Source ↗</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('feedCount').textContent = activeTopic === 'all' ? `${ITEMS.length} items` : `${vis.length} of ${ITEMS.length} items`;
+
+  if (hid) { const e = el.querySelector(`[data-id="${hid}"]`); if (e) e.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
+}
+
+/* ── METRICS ───────────────────────────────────────────────── */
+function renderMetrics() {
+  const vis = visibleItems();
+  const mc = [
+    {n: vis.filter(i => i.urgency === 'high').length, label: 'High urgency', c: '#E24B4A'},
+    {n: vis.filter(i => i.category === 'proposed-rule').length, label: 'NPRMs open', c: '#EF9F27'},
+    {n: vis.filter(i => i.category === 'final-rule').length, label: 'Final rules', c: '#5DCAA5'},
+    {n: vis.filter(i => i.category === 'enforcement' || i.category === 'litigation').length, label: 'Enforcement / litigation', c: '#F09595'},
+  ];
+  document.getElementById('mc').innerHTML = mc.map(m =>
+    `<div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px">
+      <div style="font-size:26px;font-weight:500;color:${m.c};line-height:1">${m.n}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:5px">${m.label}</div>
+    </div>`
+  ).join('');
+}
+
+/* ── TABLE ─────────────────────────────────────────────────── */
+function renderTable() {
+  const vis = visibleItems();
+  const all = [...ITEMS].sort((a, b) => a.daysAgo - b.daysAgo || a.agency.localeCompare(b.agency));
+  const uc = {high: '#E24B4A', medium: '#EF9F27', low: '#5DCAA5'};
+
+  if (ITEMS.length === 0) { document.getElementById('tb').innerHTML = ''; return; }
+
+  document.getElementById('tb').innerHTML = `
+    <div class="tr th" style="border-bottom:.5px solid rgba(255,255,255,.1);padding-bottom:8px">
+      <span>Agency</span><span>Date</span><span>Category</span><span>Item</span><span>Urgency</span><span>Link</span>
+    </div>
+    ${all.map(it => {
+      const cat = CATS[it.category];
+      const isDimmed = !vis.includes(it);
+      return `<div class="tr${isDimmed ? ' dimmed' : ''}" onclick="eraSelect(${it.id})">
+        <span style="color:rgba(201,168,76,.8)">${it.agency}</span>
+        <span style="color:rgba(255,255,255,.38)">${it.date}</span>
+        <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
+        <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
+        <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>
+        <span>${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,.35);font-size:11px">Open ↗</a>` : '—'}</span>
+      </div>`;
+    }).join('')}`;
+}
+
+/* ── INTERACTION ───────────────────────────────────────────── */
+window.eraSelect = function(id) {
+  selId = selId === id ? null : id;
+  drawRadar(); renderFeed(selId); renderTable();
+};
+
+window.setTopic = function(t) {
+  activeTopic = t; selId = null;
+  renderTopicBar(); drawRadar(); renderFeed(null); renderMetrics(); renderTable();
+};
+
+function setupHover() {
+  const cv = document.getElementById('rc');
+  cv.addEventListener('mousemove', e => {
+    const rect = cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let hit = null;
+    for (const dp of dots) { const dx = dp.x - mx, dy = dp.y - my; if (Math.sqrt(dx*dx+dy*dy) < dp.hr) { hit = dp; break; } }
+    cv.style.cursor = hit ? 'pointer' : 'default';
+    document.querySelectorAll('.fi').forEach(el => el.classList.remove('hi'));
+    if (hit && !selId) {
+      const el = document.querySelector(`.fi[data-id="${hit.it.id}"]`);
+      if (el) { el.classList.add('hi'); el.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
+    }
+  });
+  cv.addEventListener('mouseleave', () => { cv.style.cursor = 'default'; if (!selId) document.querySelectorAll('.fi').forEach(el => el.classList.remove('hi')); });
+  cv.addEventListener('click', e => {
+    const rect = cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    for (const dp of dots) { const dx = dp.x - mx, dy = dp.y - my; if (Math.sqrt(dx*dx+dy*dy) < dp.hr) { window.eraSelect(dp.it.id); break; } }
+  });
+}
+
+/* ── INIT ──────────────────────────────────────────────────── */
+async function init() {
+  ITEMS = await loadFeed();
+  renderTopicBar();
+  drawRadar();
+  renderFeed(null);
+  renderMetrics();
+  renderTable();
+  setupHover();
+}
+window.addEventListener('resize', drawRadar);
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+
+})();
+</script>
+</body>
+</html>
