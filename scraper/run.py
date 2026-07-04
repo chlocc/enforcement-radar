@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(__file__))
 
 from fetch_all import fetch_all as fetch_sources
+from keywords import matches_tracker_item
 from normalize import dedupe_key, normalize_date
 
 OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "site", "data", "feed.json")
@@ -42,6 +43,10 @@ def _parse_iso(raw):
 def main():
     _load_env()
     items = fetch_sources()
+    fetched = len(items)
+    items = [i for i in items if matches_tracker_item(i)]
+    print(f"[filter] kept {len(items)}/{fetched} fetched items matching tracked topics")
+
     for item in items:
         if not item.get("published_iso"):
             item["published_iso"] = normalize_date(item.get("published", ""))
@@ -51,8 +56,12 @@ def main():
         with open(OUT_PATH) as f:
             existing = json.load(f)
 
-    seen = {dedupe_key(i) for i in existing}
-    merged = existing + [i for i in items if dedupe_key(i) not in seen]
+    existing_kept = [i for i in existing if matches_tracker_item(i)]
+    if len(existing_kept) < len(existing):
+        print(f"[filter] dropped {len(existing) - len(existing_kept)} off-topic items from saved feed")
+
+    seen = {dedupe_key(i) for i in existing_kept}
+    merged = existing_kept + [i for i in items if dedupe_key(i) not in seen]
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
     pruned = []

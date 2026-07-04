@@ -5,7 +5,7 @@ from datetime import datetime
 
 import requests
 
-from keywords import matches_ai, matches_digital_assets
+from keywords import matches_tracker_item, matches_tracker_topics
 from normalize import make_item
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
@@ -65,7 +65,7 @@ def fetch_all():
 
         for bill in bills:
             title = _bill_label(bill)
-            if not (matches_digital_assets(title) or matches_ai(title)):
+            if not matches_tracker_topics(title):
                 continue
             congress = bill.get("congress", CURRENT_CONGRESS)
             bill_type = (bill.get("type") or "").lower()

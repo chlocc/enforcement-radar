@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from keywords import matches_ai, matches_digital_assets
+from keywords import matches_tracker_item
 from normalize import make_item
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
@@ -13,10 +13,15 @@ SEARCH_TERMS = [
     "cryptocurrency",
     "stablecoin",
     "virtual currency",
-    "digital asset kiosk",
+    "digital asset",
+    "genius act",
     "artificial intelligence",
     "machine learning",
     "algorithmic trading",
+    "prediction market",
+    "event contract",
+    "commodity futures",
+    "security-based swap",
 ]
 
 
@@ -43,8 +48,8 @@ def fetch_all(days_back=30):
             for doc in resp.json().get("results", []):
                 title = doc.get("title", "").strip()
                 abstract = doc.get("abstract") or ""
-                text = f"{title} {abstract}"
-                if not title or not (matches_digital_assets(text) or matches_ai(text)):
+                candidate = {"title": title, "summary": abstract}
+                if not title or not matches_tracker_item(candidate):
                     continue
                 doc_num = doc.get("document_number")
                 if doc_num in seen:

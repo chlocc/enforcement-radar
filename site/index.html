@@ -21,13 +21,17 @@
   .fi:hover { opacity: .85; }
   .fi.dimmed { opacity: .22; pointer-events: none; }
 
+  .dashboard-top { display: grid; grid-template-columns: 190px 1fr; border-bottom: .5px solid rgba(255,255,255,.06); }
+  .radar-panel { position: relative; border-left: .5px solid rgba(255,255,255,.06); }
+  #recentSection { padding: 18px 28px 22px; border-bottom: .5px solid rgba(255,255,255,.06); }
+  #recentHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  #feedItems { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 28px; }
+  #feedItems .fi { padding: 10px 0; }
+
   .tr { display: grid; grid-template-columns: 72px 88px 100px 1fr 72px 100px; gap: 10px; padding: 8px 0; border-bottom: .5px solid rgba(255,255,255,.05); align-items: start; font-size: 12px; cursor: pointer; }
   .tr:hover { background: rgba(255,255,255,.025); }
   .tr.dimmed { opacity: .2; pointer-events: none; }
   .th span { color: rgba(255,255,255,.22); text-transform: uppercase; letter-spacing: .07em; font-size: 10px; }
-  #feedScroll { overflow-y: auto; height: 420px; }
-  #feedScroll::-webkit-scrollbar { width: 3px; }
-  #feedScroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
 
   .topic-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; }
   .empty-state { padding: 60px 24px; text-align: center; color: rgba(255,255,255,.3); font-size: 13px; line-height: 1.7; }
@@ -50,7 +54,7 @@
       <span style="font-size:22px;font-weight:500;letter-spacing:-.4px">Enforcement</span>
       <span style="font-size:22px;font-weight:400;color:#C9A84C;letter-spacing:-.4px;font-style:italic">radar.</span>
     </div>
-    <p style="font-size:12px;color:rgba(255,255,255,.28)">Phase 2 tracker &nbsp;·&nbsp; Digital Assets + AI topics &nbsp;·&nbsp; 12 agencies &nbsp;·&nbsp; 30-day window &nbsp;·&nbsp; search by title</p>
+    <p style="font-size:12px;color:rgba(255,255,255,.28)">Digital assets · AI · GENIUS/stablecoins · derivatives · commodities/prediction markets &nbsp;·&nbsp; 30-day window</p>
   </div>
 
   <div style="padding:10px 28px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;gap:12px;flex-wrap:wrap;align-items:center">
@@ -62,29 +66,28 @@
     <span style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-right:4px">Topic</span>
   </div>
 
-  <div style="display:grid;grid-template-columns:190px 1fr 300px">
+  <div class="dashboard-top">
     <div id="indexPanel">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-bottom:10px">Index</div>
       <div id="indexItems"></div>
     </div>
-    <div style="position:relative;border-right:.5px solid rgba(255,255,255,.06)">
+    <div class="radar-panel">
       <canvas id="rc" style="display:block;width:100%;height:420px"></canvas>
-    </div>
-    <div style="display:flex;flex-direction:column;overflow:hidden">
-      <div style="padding:12px 16px 10px;border-bottom:.5px solid rgba(255,255,255,.05);flex-shrink:0">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;display:inline-block;animation:blink 2s infinite"></span>
-            <span style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.35);text-transform:uppercase">Recent activity</span>
-          </div>
-          <span id="feedCount" style="font-size:10px;color:rgba(255,255,255,.18)"></span>
-        </div>
-      </div>
-      <div id="feedScroll" style="padding:0 16px;flex:1"><div id="feedItems"></div></div>
     </div>
   </div>
 
-  <div style="border-top:.5px solid rgba(255,255,255,.06);padding:22px 28px 28px">
+  <div id="recentSection">
+    <div id="recentHeader">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;display:inline-block;animation:blink 2s infinite"></span>
+        <span style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.35);text-transform:uppercase">Recent activity</span>
+      </div>
+      <span id="feedCount" style="font-size:10px;color:rgba(255,255,255,.18)"></span>
+    </div>
+    <div id="feedItems"></div>
+  </div>
+
+  <div style="padding:22px 28px 28px">
     <div id="mc" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px"></div>
     <div id="tb"></div>
   </div>
@@ -380,13 +383,21 @@ function renderTopicBar() {
 }
 
 /* ── FEED ──────────────────────────────────────────────────── */
+function formatFeedDate(it) {
+  if (!it.date) return 'Date unknown';
+  const d = new Date(it.date);
+  if (isNaN(d.getTime())) return 'Date unknown';
+  const mo = d.toLocaleString('en-US', {month: 'short'}).toUpperCase();
+  return it.daysAgo === 0 ? `${mo} ${d.getDate()} · Today` : `${mo} ${d.getDate()}`;
+}
+
 function renderFeed(hid) {
   const vis = visibleItems();
-  const sorted = [...ITEMS].sort((a, b) => a.daysAgo - b.daysAgo);
+  const sorted = [...ITEMS].sort((a, b) => (a.daysAgo ?? WINDOW_DAYS) - (b.daysAgo ?? WINDOW_DAYS));
   const el = document.getElementById('feedItems');
 
   if (ITEMS.length === 0) {
-    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch Phase 2 sources into <code>site/data/feed.json</code>.</div>`;
+    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch sources into <code>site/data/feed.json</code>.</div>`;
     document.getElementById('feedCount').textContent = '';
     return;
   }
@@ -394,9 +405,7 @@ function renderFeed(hid) {
   el.innerHTML = sorted.map(it => {
     const cat = CATS[it.category], isHi = it.id === hid;
     const isDimmed = !vis.includes(it);
-    const d = new Date(it.date);
-    const mo = d.toLocaleString('en-US', {month: 'short'}).toUpperCase();
-    const lbl = it.daysAgo === 0 ? `${mo} ${d.getDate()} · Today` : `${mo} ${d.getDate()}`;
+    const lbl = formatFeedDate(it);
     const topicTags = it.topics.map(t =>
       `<span class="topic-tag" style="background:${t.color}18;color:${t.color}CC;border:.5px solid ${t.color}35">${t.label}</span>`
     ).join('');
@@ -437,7 +446,7 @@ function renderMetrics() {
 /* ── TABLE ─────────────────────────────────────────────────── */
 function renderTable() {
   const vis = visibleItems();
-  const all = [...ITEMS].sort((a, b) => a.daysAgo - b.daysAgo || a.agency.localeCompare(b.agency));
+  const all = [...ITEMS].sort((a, b) => (a.daysAgo ?? WINDOW_DAYS) - (b.daysAgo ?? WINDOW_DAYS) || a.agency.localeCompare(b.agency));
   const uc = {high: '#E24B4A', medium: '#EF9F27', low: '#5DCAA5'};
 
   if (ITEMS.length === 0) { document.getElementById('tb').innerHTML = ''; return; }
@@ -451,7 +460,7 @@ function renderTable() {
       const isDimmed = !vis.includes(it);
       return `<div class="tr${isDimmed ? ' dimmed' : ''}" onclick="eraSelect(${it.id})">
         <span style="color:rgba(201,168,76,.8)">${it.agency}</span>
-        <span style="color:rgba(255,255,255,.38)">${it.date}</span>
+        <span style="color:rgba(255,255,255,.38)">${it.date || '—'}</span>
         <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
         <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
         <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>

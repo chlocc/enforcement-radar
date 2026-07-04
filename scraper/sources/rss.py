@@ -3,6 +3,7 @@
 import feedparser
 import requests
 
+from keywords import matches_tracker_item
 from normalize import make_item
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
@@ -34,6 +35,10 @@ def fetch_feed(feed):
         link = entry.get("link", "")
         if not title or not link:
             continue
+        summary = entry.get("summary", "")
+        candidate = {"title": title, "summary": summary}
+        if not matches_tracker_item(candidate):
+            continue
         items.append(
             make_item(
                 agency=feed["agency"],
@@ -42,6 +47,7 @@ def fetch_feed(feed):
                 published=entry.get("published", entry.get("updated", "")),
                 source_id=feed["source_id"],
                 external_id=entry.get("id", link),
+                summary=summary[:500] if summary else None,
             )
         )
     return items

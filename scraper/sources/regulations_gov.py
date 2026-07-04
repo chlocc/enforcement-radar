@@ -4,7 +4,7 @@ import os
 
 import requests
 
-from keywords import matches_ai, matches_digital_assets
+from keywords import matches_tracker_item
 from normalize import make_item
 
 API_BASE = "https://api.regulations.gov/v4/documents"
@@ -14,7 +14,11 @@ SEARCH_TERMS = [
     "digital asset",
     "cryptocurrency",
     "stablecoin",
-    "virtual currency",
+    "genius act",
+    "prediction market",
+    "event contract",
+    "security-based swap",
+    "commodity futures",
 ]
 
 
@@ -44,8 +48,8 @@ def fetch_all():
                 attrs = doc.get("attributes", {})
                 title = (attrs.get("title") or "").strip()
                 summary = attrs.get("summary") or ""
-                text = f"{title} {summary}"
-                if not title or not (matches_digital_assets(text) or matches_ai(text)):
+                candidate = {"title": title, "summary": summary}
+                if not title or not matches_tracker_item(candidate):
                     continue
                 doc_id = doc.get("id")
                 if doc_id in seen:

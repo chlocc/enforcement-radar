@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from keywords import matches_digital_assets
+from keywords import matches_tracker_item, matches_tracker_topics
 from normalize import make_item
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
@@ -34,7 +34,7 @@ def fetch_ofac():
         if path.endswith(("regulations-and-guidance", "sanctions-list-updates")):
             continue
         title = re.sub(r"\s+", " ", title).strip()
-        if not matches_digital_assets(title):
+        if not matches_tracker_topics(title):
             continue
         try:
             published = datetime.strptime(date_key, "%Y%m%d").strftime("%Y-%m-%d")
@@ -66,7 +66,7 @@ def fetch_fincen_press():
         if not link_m:
             continue
         path, title = link_m.group(1), re.sub(r"\s+", " ", link_m.group(2)).strip()
-        if not matches_digital_assets(title):
+        if not matches_tracker_topics(title):
             continue
         published = time_m.group(1) if time_m else ""
         items.append(
@@ -94,7 +94,7 @@ def fetch_fincen_advisories():
         re.S,
     ):
         title = re.sub(r"\s+", " ", title).strip()
-        if not matches_digital_assets(title):
+        if not matches_tracker_topics(title):
             continue
         date_text = re.sub(r"\s+", " ", date_text).strip()
         try:
@@ -127,7 +127,7 @@ def fetch_irs_digital_assets():
         if path.startswith("#") or "determine how" in title.lower():
             continue
         if not any(k in title.lower() for k in ("revenue", "notice", "ruling", "procedure", "regulation", "fact sheet", "news release", "ir-")):
-            if not matches_digital_assets(title):
+            if not matches_tracker_topics(title):
                 continue
         link = urljoin(base, path)
         if link in seen:
