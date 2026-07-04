@@ -32,14 +32,21 @@ jobs:
       - name: Fetch regulatory feed
         env:
           REGULATIONS_API_KEY: ${{ secrets.REGULATIONS_API_KEY }}
+          CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
         run: python3 scraper/run.py
 
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
+      - name: GitHub Pages note (private repo)
+        if: github.event.repository.private
+        run: |
+          echo "::notice title=GitHub Pages skipped::Deploy is disabled on private repos (free plan). Use Netlify, or make this repo public and enable Pages under Settings → Pages → GitHub Actions."
+
   deploy:
     needs: build
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     environment:
       name: github-pages

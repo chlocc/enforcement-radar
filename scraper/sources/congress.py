@@ -5,7 +5,7 @@ from datetime import datetime
 
 import requests
 
-from keywords import matches_digital_assets
+from keywords import matches_ai, matches_digital_assets
 from normalize import make_item
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
@@ -35,10 +35,9 @@ def _chamber_label(bill):
 
 
 def fetch_all():
-    api_key = os.environ.get("CONGRESS_API_KEY")
-    if not api_key:
-        print("[skip] congress-gov: set CONGRESS_API_KEY to ingest legislative bills")
-        return []
+    api_key = os.environ.get("CONGRESS_API_KEY", "DEMO_KEY")
+    if api_key == "DEMO_KEY":
+        print("[congress-gov] using DEMO_KEY (limited rate; set CONGRESS_API_KEY for production)")
 
     items = []
     offset = 0
@@ -66,7 +65,7 @@ def fetch_all():
 
         for bill in bills:
             title = _bill_label(bill)
-            if not matches_digital_assets(title):
+            if not (matches_digital_assets(title) or matches_ai(title)):
                 continue
             congress = bill.get("congress", CURRENT_CONGRESS)
             bill_type = (bill.get("type") or "").lower()
@@ -93,5 +92,5 @@ def fetch_all():
         if offset >= 1000:
             break
 
-    print(f"[congress] congress-gov: {len(items)} digital-asset bills")
+    print(f"[congress] congress-gov: {len(items)} topic-matched bills")
     return items

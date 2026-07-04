@@ -9,6 +9,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EnforcementRadar/1.0)"}
 
 FEEDS = [
     {"agency": "SEC", "source_id": "sec-press", "url": "https://www.sec.gov/news/pressreleases.rss"},
+    {"agency": "SEC", "source_id": "sec-speeches", "url": "https://www.sec.gov/news/speeches-statements.rss"},
     {"agency": "CFTC", "source_id": "cftc-press", "url": "https://www.cftc.gov/RSS/RSSGP/rssgp.xml"},
     {"agency": "CFTC", "source_id": "cftc-enforcement", "url": "https://www.cftc.gov/taxonomy/term/111/feed"},
     {"agency": "CFTC", "source_id": "cftc-speeches", "url": "https://www.cftc.gov/RSS/RSSST/rssst.xml"},
