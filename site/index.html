@@ -32,6 +32,14 @@
   .topic-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; }
   .empty-state { padding: 60px 24px; text-align: center; color: rgba(255,255,255,.3); font-size: 13px; line-height: 1.7; }
   .empty-state code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 4px; color: rgba(255,255,255,.55); }
+  .idx-item { display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid rgba(255,255,255,.05);cursor:pointer;font-size:12px;color:rgba(255,255,255,.45); }
+  .idx-item:hover { color:rgba(255,255,255,.75); }
+  .idx-item.on { color:#C9A84C; }
+  .idx-item .cnt { font-size:10px;color:rgba(255,255,255,.22); }
+  #indexPanel { border-right:.5px solid rgba(255,255,255,.06);padding:16px 14px; }
+  #searchInput { background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;padding:8px 12px;font-size:12px;font-family:inherit;width:220px;outline:none; }
+  #searchInput::placeholder { color:rgba(255,255,255,.25); }
+  #searchInput:focus { border-color:rgba(201,168,76,.45); }
 </style>
 </head>
 <body>
@@ -42,14 +50,23 @@
       <span style="font-size:22px;font-weight:500;letter-spacing:-.4px">Enforcement</span>
       <span style="font-size:22px;font-weight:400;color:#C9A84C;letter-spacing:-.4px;font-style:italic">radar.</span>
     </div>
-    <p style="font-size:12px;color:rgba(255,255,255,.28)">Live feed from SEC, CFTC, and DOJ press releases &nbsp;·&nbsp; agency = sector &nbsp;·&nbsp; recency = radius &nbsp;·&nbsp; center = today &nbsp;·&nbsp; outer ring = 7 days &nbsp;·&nbsp; click any dot to lock selection</p>
+    <p style="font-size:12px;color:rgba(255,255,255,.28)">Phase 2 tracker &nbsp;·&nbsp; Digital Assets + AI topics &nbsp;·&nbsp; 12 agencies &nbsp;·&nbsp; 30-day window &nbsp;·&nbsp; search by title</p>
+  </div>
+
+  <div style="padding:10px 28px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <input id="searchInput" type="search" placeholder="Search title…" oninput="setSearch(this.value)">
+    <span id="resultStats" style="font-size:10px;color:rgba(255,255,255,.22);margin-left:auto"></span>
   </div>
 
   <div id="topicBar" style="padding:12px 28px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     <span style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-right:4px">Topic</span>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 300px">
+  <div style="display:grid;grid-template-columns:190px 1fr 300px">
+    <div id="indexPanel">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-bottom:10px">Index</div>
+      <div id="indexItems"></div>
+    </div>
     <div style="position:relative;border-right:.5px solid rgba(255,255,255,.06)">
       <canvas id="rc" style="display:block;width:100%;height:420px"></canvas>
     </div>
@@ -80,8 +97,10 @@
 /* ── TOPIC BUCKETS ─────────────────────────────────────────── */
 const TOPICS = [
   { id: 'all', label: 'All items', color: '#888780', keywords: [] },
-  { id: 'crypto', label: 'Crypto / Digital Asset', color: '#AFA9EC',
-    keywords: ['crypto','digital asset','blockchain','stablecoin','token','defi','virtual currency','digital currency','nft','web3','bitcoin','ethereum'] },
+  { id: 'crypto', label: 'Digital Assets', color: '#AFA9EC',
+    keywords: ['crypto','digital asset','blockchain','stablecoin','token','defi','virtual currency','digital currency','nft','web3','bitcoin','ethereum','clarity act','genius act','custody','fintech','kiosk','cvc','convertible virtual'] },
+  { id: 'ai', label: 'AI', color: '#85B7EB',
+    keywords: ['artificial intelligence','machine learning','deep learning','neural network','large language model','generative ai','gen ai','algorithmic','automated decision','robo-adviser','robo adviser','chatbot','predictive model','model risk','ai labeling','ai sovereignty','ai data center','ai utilization','ai-powered','ai system',' ai '] },
   { id: 'genius', label: 'GENIUS Act / Stablecoins', color: '#5DCAA5',
     keywords: ['genius act','genius','stablecoin legislation','stablecoin regulation','payment stablecoin'] },
   { id: 'derivatives', label: 'Derivatives / Swaps', color: '#EF9F27',
@@ -90,14 +109,28 @@ const TOPICS = [
     keywords: ['commodity','dcm','dco','fcm','sef','event contract','prediction market','designated contract market','futures commission','swap execution','off-exchange','leveraged','eligible contract participant'] },
 ];
 
-/* ── AGENCY CONFIG — matches scraper/feeds.py FEEDS list ───── */
-const AG = [
-  {id:'SEC',    label:'SEC',    angle:18,  live:true},
-  {id:'CFTC',   label:'CFTC',   angle:90,  live:true},
-  {id:'DOJ',    label:'DOJ',    angle:162, live:true},
-  {id:'OFAC',   label:'OFAC',   angle:234, live:false},
-  {id:'FinCEN', label:'FinCEN', angle:306, live:false},
+/* ── INDEX CATEGORIES — matches scraper normalize.AGENCY_META ─ */
+const INDEX_CATS = [
+  {id:'congress',    label:'Congress',         angle:0,   color:'#AFA9EC'},
+  {id:'securities',  label:'Securities',       angle:51,  color:'#85B7EB'},
+  {id:'commodities', label:'Commodities',      angle:103, color:'#EF9F27'},
+  {id:'banking',     label:'Banking',          angle:154, color:'#5DCAA5'},
+  {id:'aml',         label:'AML & Sanctions',  angle:206, color:'#E24B4A'},
+  {id:'enforcement', label:'Enforcement',      angle:257, color:'#F09595'},
+  {id:'rulemaking',  label:'Rulemaking',       angle:309, color:'#B4B2A9'},
 ];
+
+const AGENCY_TO_INDEX = {
+  'SEC':'securities','CFTC':'commodities','DOJ':'enforcement','FTC':'enforcement','IRS':'enforcement',
+  'Congress':'congress','OCC':'banking','Federal Reserve':'banking','FDIC':'banking','CFPB':'banking',
+  'OFAC':'aml','FinCEN':'aml','Federal Register':'rulemaking',
+};
+
+const DEV_TYPE_TO_CAT = {
+  'bill':'legislative','sanctions':'sanctions','advisory':'advisory','hearing':'hearing',
+  'no-action':'no-action','proposed-rule':'proposed-rule','final-rule':'final-rule',
+  'enforcement':'enforcement','guidance':'guidance','press':'guidance',
+};
 
 const CATS = {
   'enforcement':  {color:'#E24B4A', label:'Enforcement'},
@@ -107,14 +140,21 @@ const CATS = {
   'guidance':     {color:'#85B7EB', label:'Guidance'},
   'report':       {color:'#B4B2A9', label:'Report'},
   'legislative':  {color:'#AFA9EC', label:'Legislative'},
+  'sanctions':    {color:'#E24B4A', label:'Sanctions'},
+  'advisory':     {color:'#EF9F27', label:'Advisory'},
+  'hearing':      {color:'#AFA9EC', label:'Hearing'},
+  'no-action':    {color:'#5DCAA5', label:'No-action'},
 };
 
 /* ── STATE ─────────────────────────────────────────────────── */
-const agMap = Object.fromEntries(AG.map(a => [a.id, a]));
+const catMap = Object.fromEntries(INDEX_CATS.map(c => [c.id, c]));
 let ITEMS = [];
 let selId = null;
 let activeTopic = 'all';
+let activeCategory = 'all';
+let searchQuery = '';
 let dots = [];
+const WINDOW_DAYS = 30;
 
 /* ── CLASSIFY (rule-based, deterministic — no invented urgency) ─
    Category/urgency are inferred from title keywords only. This is a
@@ -126,25 +166,36 @@ function classify(title) {
   if (/charge[sd]?\b|enforcement action|penalt|settle[sd]?\b|orders?.*to pay|fined|pleads? guilty|sentenced|indict/.test(t)) return {category:'enforcement', urgency:'high'};
   if (/propose[sd]?\b|seeks? (public )?comment|notice of proposed|nprm|request for comment/.test(t)) return {category:'proposed-rule', urgency:'medium'};
   if (/final rule|adopts? rule|adopted rule/.test(t)) return {category:'final-rule', urgency:'high'};
-  if (/hearing|markup|introduce[sd]?\b|\bbill\b/.test(t)) return {category:'legislative', urgency:'medium'};
-  if (/report|stress test|\bstudy\b/.test(t)) return {category:'report', urgency:'medium'};
+  if (/hearing|markup|introduce[sd]?\b|\bbill\b|—.*act\b/i.test(t)) return {category:'legislative', urgency:'medium'};
+  if (/advisory|alert\b/.test(t)) return {category:'advisory', urgency:'medium'};
+  if (/designation|sanctions list|sdn\b/.test(t)) return {category:'sanctions', urgency:'high'};
+  if (/no-action|no action/.test(t)) return {category:'no-action', urgency:'medium'};
   return {category:'guidance', urgency:'low'};
 }
 
 function rawToItem(r, idx) {
-  const {category, urgency} = classify(r.title || '');
+  const devType = r.development_type || '';
+  const fromDev = DEV_TYPE_TO_CAT[devType];
+  const classified = classify(r.title || '');
+  const category = fromDev || classified.category;
+  const urgency = classified.urgency;
   const pub = r.published_iso ? new Date(r.published_iso) : null;
   const daysAgo = pub ? Math.floor((Date.now() - pub.getTime()) / 86400000) : null;
+  const categoryIndex = r.category_index || AGENCY_TO_INDEX[r.agency] || 'enforcement';
   return {
     id: idx + 1,
     agency: r.agency,
+    subAgency: r.sub_agency || '',
+    categoryIndex,
+    developmentType: devType,
     date: pub ? pub.toISOString().slice(0, 10) : '',
     daysAgo,
     category, urgency,
     title: r.title,
-    text: (r.title || '').toLowerCase(),
+    text: (r.title || '').toLowerCase() + ' ' + (r.summary || '').toLowerCase(),
     deadline: null,
     link: r.link,
+    sourceId: r.source_id || '',
   };
 }
 
@@ -160,7 +211,7 @@ async function loadFeed() {
     const raw = await res.json();
     const items = raw
       .map(rawToItem)
-      .filter(it => it.daysAgo !== null && it.daysAgo >= 0 && it.daysAgo <= 7);
+      .filter(it => it.daysAgo === null || (it.daysAgo >= 0 && it.daysAgo <= WINDOW_DAYS));
     items.forEach(it => { it.topics = getItemTopics(it); });
     return items;
   } catch (e) {
@@ -170,8 +221,22 @@ async function loadFeed() {
 }
 
 function visibleItems() {
-  if (activeTopic === 'all') return ITEMS;
-  return ITEMS.filter(it => it.topics.some(t => t.id === activeTopic));
+  const q = searchQuery.trim().toLowerCase();
+  return ITEMS.filter(it => {
+    if (activeTopic !== 'all' && !it.topics.some(t => t.id === activeTopic)) return false;
+    if (activeCategory !== 'all' && it.categoryIndex !== activeCategory) return false;
+    if (q && !it.title.toLowerCase().includes(q) && !it.text.includes(q)) return false;
+    return true;
+  });
+}
+
+function updateStats() {
+  const vis = visibleItems();
+  const el = document.getElementById('resultStats');
+  if (!el) return;
+  const parts = [`${vis.length} results`, `${ITEMS.length} total`];
+  if (searchQuery.trim()) parts.push(`search: "${searchQuery.trim()}"`);
+  el.textContent = parts.join(' · ');
 }
 
 /* ── RADAR ─────────────────────────────────────────────────── */
@@ -187,29 +252,29 @@ function drawRadar() {
   ctx.scale(dpr, dpr);
   const cx = W / 2, cy = H / 2;
   const maxR = Math.min(W, H) * 0.38, minR = 22;
-  const sectorSize = 360 / AG.length;
+  const sectorSize = 360 / INDEX_CATS.length;
   const vis = visibleItems();
 
-  AG.forEach(ag => {
-    const s = toRad(ag.angle - sectorSize/2), e = toRad(ag.angle + sectorSize/2);
+  INDEX_CATS.forEach(cat => {
+    const s = toRad(cat.angle - sectorSize/2), e = toRad(cat.angle + sectorSize/2);
     ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, maxR + 8, s, e); ctx.closePath();
-    ctx.fillStyle = ag.live ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.008)';
+    ctx.fillStyle = 'rgba(255,255,255,.02)';
     ctx.fill();
   });
 
-  AG.forEach(ag => {
-    const a = toRad(ag.angle - sectorSize/2);
+  INDEX_CATS.forEach(cat => {
+    const a = toRad(cat.angle - sectorSize/2);
     ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(a) * (maxR + 8), cy + Math.sin(a) * (maxR + 8));
     ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = .5; ctx.stroke();
   });
 
-  for (let d = 1; d <= 7; d++) {
-    const r = minR + (d / 7) * (maxR - minR);
+  for (let d = 1; d <= WINDOW_DAYS; d += 5) {
+    const r = minR + (d / WINDOW_DAYS) * (maxR - minR);
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = d === 7 ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.055)';
-    ctx.lineWidth = .5; ctx.setLineDash(d < 7 ? [2, 4] : []); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = d >= WINDOW_DAYS ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)';
+    ctx.lineWidth = .5; ctx.setLineDash(d < WINDOW_DAYS ? [2, 4] : []); ctx.stroke(); ctx.setLineDash([]);
   }
 
   ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
@@ -219,34 +284,30 @@ function drawRadar() {
   ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillText('today', cx, cy + 5);
   ctx.textBaseline = 'bottom';
-  ctx.fillText('7d', cx, cy - maxR + 14);
+  ctx.fillText(WINDOW_DAYS + 'd', cx, cy - maxR + 14);
 
-  ctx.font = '11px -apple-system,sans-serif'; ctx.textBaseline = 'middle';
-  AG.forEach(ag => {
-    const a = toRad(ag.angle);
+  ctx.font = '10px -apple-system,sans-serif'; ctx.textBaseline = 'middle';
+  INDEX_CATS.forEach(cat => {
+    const a = toRad(cat.angle);
     const lx = cx + Math.cos(a) * (maxR + 22), ly = cy + Math.sin(a) * (maxR + 22);
-    ctx.fillStyle = ag.live ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.18)';
-    ctx.fillText(ag.label, lx, ly);
-    if (!ag.live) {
-      ctx.font = '8.5px -apple-system,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.12)';
-      ctx.fillText('not wired', lx, ly + 13);
-      ctx.font = '11px -apple-system,sans-serif';
-    }
+    ctx.fillStyle = activeCategory === 'all' || activeCategory === cat.id ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)';
+    ctx.fillText(cat.label, lx, ly);
   });
 
   dots = [];
   const buckets = {};
-  ITEMS.forEach(it => { const k = `${it.agency}_${it.daysAgo}`; if (!buckets[k]) buckets[k] = []; buckets[k].push(it.id); });
+  ITEMS.forEach(it => { const k = `${it.categoryIndex}_${it.daysAgo}`; if (!buckets[k]) buckets[k] = []; buckets[k].push(it.id); });
 
   ITEMS.forEach(it => {
-    const ag = agMap[it.agency]; if (!ag) return;
+    const sector = catMap[it.categoryIndex]; if (!sector) return;
     const isVis = vis.includes(it);
-    const k = `${it.agency}_${it.daysAgo}`;
+    const k = `${it.categoryIndex}_${it.daysAgo}`;
     const bk = buckets[k], idx = bk.indexOf(it.id), tot = bk.length;
     const spread = Math.min(16, tot * 5.5);
     const off = tot > 1 ? (idx - (tot - 1) / 2) * (spread / Math.max(tot - 1, 1)) : 0;
-    const aRad = toRad(ag.angle + off);
-    const r = minR + (it.daysAgo / 7) * (maxR - minR);
+    const aRad = toRad(sector.angle + off);
+    const dayVal = it.daysAgo === null ? WINDOW_DAYS : Math.min(it.daysAgo, WINDOW_DAYS);
+    const r = minR + (dayVal / WINDOW_DAYS) * (maxR - minR);
     const x = cx + Math.cos(aRad) * r, y = cy + Math.sin(aRad) * r;
     const cat = CATS[it.category], isSel = it.id === selId, dr = isSel ? 8 : 5.5;
 
@@ -281,6 +342,19 @@ function drawRadar() {
   });
 }
 
+/* ── INDEX SIDEBAR ─────────────────────────────────────────── */
+function renderIndex() {
+  const el = document.getElementById('indexItems');
+  const rows = [{id:'all', label:'All categories', count: ITEMS.length}].concat(
+    INDEX_CATS.map(c => ({id:c.id, label:c.label, count: ITEMS.filter(it => it.categoryIndex === c.id).length}))
+  );
+  el.innerHTML = rows.map(r =>
+    `<div class="idx-item${activeCategory === r.id ? ' on' : ''}" onclick="setCategory('${r.id}')">
+      <span>${r.label}</span><span class="cnt">${r.count}</span>
+    </div>`
+  ).join('');
+}
+
 /* ── TOPIC FILTER BAR ──────────────────────────────────────── */
 function renderTopicBar() {
   const bar = document.getElementById('topicBar');
@@ -312,7 +386,7 @@ function renderFeed(hid) {
   const el = document.getElementById('feedItems');
 
   if (ITEMS.length === 0) {
-    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch live SEC / CFTC / DOJ press releases into <code>site/data/feed.json</code>, then reload this page.</div>`;
+    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch Phase 2 sources into <code>site/data/feed.json</code>.</div>`;
     document.getElementById('feedCount').textContent = '';
     return;
   }
@@ -394,7 +468,17 @@ window.eraSelect = function(id) {
 
 window.setTopic = function(t) {
   activeTopic = t; selId = null;
-  renderTopicBar(); drawRadar(); renderFeed(null); renderMetrics(); renderTable();
+  renderTopicBar(); renderIndex(); drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
+};
+
+window.setCategory = function(c) {
+  activeCategory = c; selId = null;
+  renderIndex(); drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
+};
+
+window.setSearch = function(q) {
+  searchQuery = q; selId = null;
+  drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
 };
 
 function setupHover() {
@@ -422,11 +506,13 @@ function setupHover() {
 /* ── INIT ──────────────────────────────────────────────────── */
 async function init() {
   ITEMS = await loadFeed();
+  renderIndex();
   renderTopicBar();
   drawRadar();
   renderFeed(null);
   renderMetrics();
   renderTable();
+  updateStats();
   setupHover();
 }
 window.addEventListener('resize', drawRadar);
