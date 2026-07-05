@@ -15,25 +15,17 @@
   .tp.on { border-color: transparent; color: #fff; }
   .tp .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
-  .fi { padding: 11px 0; border-bottom: .5px solid rgba(255,255,255,.05); cursor: pointer; }
-  .fi:last-child { border-bottom: none; }
-  .fi.hi { background: rgba(255,255,255,.04); border-radius: 5px; padding: 11px 8px; margin: 0 -8px; }
-  .fi:hover { opacity: .85; }
-  .fi.dimmed { opacity: .22; pointer-events: none; }
-
   .dashboard-top { display: grid; grid-template-columns: 190px 1fr; border-bottom: .5px solid rgba(255,255,255,.06); }
   .radar-panel { position: relative; border-left: .5px solid rgba(255,255,255,.06); }
-  #recentSection { padding: 18px 28px 22px; border-bottom: .5px solid rgba(255,255,255,.06); }
-  #recentHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-  #feedItems { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 28px; }
-  #feedItems .fi { padding: 10px 0; }
 
-  .tr { display: grid; grid-template-columns: 72px 88px 100px 1fr 72px 100px; gap: 10px; padding: 8px 0; border-bottom: .5px solid rgba(255,255,255,.05); align-items: start; font-size: 12px; cursor: pointer; }
+  .tr { display: grid; grid-template-columns: 72px 88px 110px 100px 1fr 72px 72px; gap: 10px; padding: 8px 0; border-bottom: .5px solid rgba(255,255,255,.05); align-items: start; font-size: 12px; cursor: pointer; }
   .tr:hover { background: rgba(255,255,255,.025); }
+  .tr.hi, .tr.sel { background: rgba(255,255,255,.04); }
   .tr.dimmed { opacity: .2; pointer-events: none; }
   .th span { color: rgba(255,255,255,.22); text-transform: uppercase; letter-spacing: .07em; font-size: 10px; }
 
-  .topic-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; }
+  .topic-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; white-space: nowrap; }
+  .topic-tags { display: flex; flex-wrap: wrap; gap: 4px; }
   .empty-state { padding: 60px 24px; text-align: center; color: rgba(255,255,255,.3); font-size: 13px; line-height: 1.7; }
   .empty-state code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 4px; color: rgba(255,255,255,.55); }
   .idx-item { display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid rgba(255,255,255,.05);cursor:pointer;font-size:12px;color:rgba(255,255,255,.45); }
@@ -76,18 +68,7 @@
     </div>
   </div>
 
-  <div id="recentSection">
-    <div id="recentHeader">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;display:inline-block;animation:blink 2s infinite"></span>
-        <span style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.35);text-transform:uppercase">Recent activity</span>
-      </div>
-      <span id="feedCount" style="font-size:10px;color:rgba(255,255,255,.18)"></span>
-    </div>
-    <div id="feedItems"></div>
-  </div>
-
-  <div style="padding:22px 28px 28px">
+  <div style="padding:22px 28px 28px;border-top:.5px solid rgba(255,255,255,.06)">
     <div id="mc" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px"></div>
     <div id="tb"></div>
   </div>
@@ -99,16 +80,16 @@
 
 /* ── TOPIC BUCKETS ─────────────────────────────────────────── */
 const TOPICS = [
-  { id: 'all', label: 'All items', color: '#888780', keywords: [] },
-  { id: 'crypto', label: 'Digital Assets', color: '#AFA9EC',
+  { id: 'all', label: 'All items', short: 'All', color: '#888780', keywords: [] },
+  { id: 'crypto', label: 'Digital Assets', short: 'DA', color: '#AFA9EC',
     keywords: ['crypto','digital asset','blockchain','stablecoin','token','defi','virtual currency','digital currency','nft','web3','bitcoin','ethereum','clarity act','genius act','custody','fintech','kiosk','cvc','convertible virtual'] },
-  { id: 'ai', label: 'AI', color: '#85B7EB',
+  { id: 'ai', label: 'AI', short: 'AI', color: '#85B7EB',
     keywords: ['artificial intelligence','machine learning','deep learning','neural network','large language model','generative ai','gen ai','algorithmic','automated decision','robo-adviser','robo adviser','chatbot','predictive model','model risk','ai labeling','ai sovereignty','ai data center','ai utilization','ai-powered','ai system',' ai '] },
-  { id: 'genius', label: 'GENIUS Act / Stablecoins', color: '#5DCAA5',
+  { id: 'genius', label: 'GENIUS Act / Stablecoins', short: 'GENIUS', color: '#5DCAA5',
     keywords: ['genius act','genius','stablecoin legislation','stablecoin regulation','payment stablecoin'] },
-  { id: 'derivatives', label: 'Derivatives / Swaps', color: '#EF9F27',
+  { id: 'derivatives', label: 'Derivatives / Swaps', short: 'Deriv', color: '#EF9F27',
     keywords: ['swap','derivatives','futures','clearing','margin','isda','ccp','central counterparty','uncleared','portfolio margining','cross-margin','security-based swap'] },
-  { id: 'commodities', label: 'Commodities / Prediction Markets', color: '#E24B4A',
+  { id: 'commodities', label: 'Commodities / Prediction Markets', short: 'Commod', color: '#E24B4A',
     keywords: ['commodity','dcm','dco','fcm','sef','event contract','prediction market','designated contract market','futures commission','swap execution','off-exchange','leveraged','eligible contract participant'] },
 ];
 
@@ -382,48 +363,11 @@ function renderTopicBar() {
   });
 }
 
-/* ── FEED ──────────────────────────────────────────────────── */
-function formatFeedDate(it) {
-  if (!it.date) return 'Date unknown';
-  const d = new Date(it.date);
-  if (isNaN(d.getTime())) return 'Date unknown';
-  const mo = d.toLocaleString('en-US', {month: 'short'}).toUpperCase();
-  return it.daysAgo === 0 ? `${mo} ${d.getDate()} · Today` : `${mo} ${d.getDate()}`;
-}
-
-function renderFeed(hid) {
-  const vis = visibleItems();
-  const sorted = [...ITEMS].sort((a, b) => (a.daysAgo ?? WINDOW_DAYS) - (b.daysAgo ?? WINDOW_DAYS));
-  const el = document.getElementById('feedItems');
-
-  if (ITEMS.length === 0) {
-    el.innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch sources into <code>site/data/feed.json</code>.</div>`;
-    document.getElementById('feedCount').textContent = '';
-    return;
-  }
-
-  el.innerHTML = sorted.map(it => {
-    const cat = CATS[it.category], isHi = it.id === hid;
-    const isDimmed = !vis.includes(it);
-    const lbl = formatFeedDate(it);
-    const topicTags = it.topics.map(t =>
-      `<span class="topic-tag" style="background:${t.color}18;color:${t.color}CC;border:.5px solid ${t.color}35">${t.label}</span>`
-    ).join('');
-    return `<div class="fi${isHi ? ' hi' : ''}${isDimmed ? ' dimmed' : ''}" data-id="${it.id}" onclick="eraSelect(${it.id})">
-      <div style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">${lbl}</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.45;margin-bottom:7px">${it.title}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-        <span style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid rgba(201,168,76,.35);color:rgba(201,168,76,.75)">${it.agency}</span>
-        <span style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid ${cat.color}40;color:${cat.color}BB">${cat.label}</span>
-        ${topicTags}
-        ${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:10px;padding:2px 8px;border-radius:10px;border:.5px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);text-decoration:none">Source ↗</a>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  document.getElementById('feedCount').textContent = activeTopic === 'all' ? `${ITEMS.length} items` : `${vis.length} of ${ITEMS.length} items`;
-
-  if (hid) { const e = el.querySelector(`[data-id="${hid}"]`); if (e) e.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
+function topicTagsHtml(topics, useShort) {
+  if (!topics.length) return '<span style="color:rgba(255,255,255,.2)">—</span>';
+  return `<span class="topic-tags">${topics.map(t =>
+    `<span class="topic-tag" title="${t.label}" style="background:${t.color}18;color:${t.color}CC;border:.5px solid ${t.color}35">${useShort ? t.short : t.label}</span>`
+  ).join('')}</span>`;
 }
 
 /* ── METRICS ───────────────────────────────────────────────── */
@@ -449,45 +393,55 @@ function renderTable() {
   const all = [...ITEMS].sort((a, b) => (a.daysAgo ?? WINDOW_DAYS) - (b.daysAgo ?? WINDOW_DAYS) || a.agency.localeCompare(b.agency));
   const uc = {high: '#E24B4A', medium: '#EF9F27', low: '#5DCAA5'};
 
-  if (ITEMS.length === 0) { document.getElementById('tb').innerHTML = ''; return; }
+  if (ITEMS.length === 0) {
+    document.getElementById('tb').innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch sources into <code>site/data/feed.json</code>.</div>`;
+    return;
+  }
 
   document.getElementById('tb').innerHTML = `
     <div class="tr th" style="border-bottom:.5px solid rgba(255,255,255,.1);padding-bottom:8px">
-      <span>Agency</span><span>Date</span><span>Category</span><span>Item</span><span>Urgency</span><span>Link</span>
+      <span>Agency</span><span>Date</span><span>Topics</span><span>Type</span><span>Item</span><span>Urgency</span><span>Link</span>
     </div>
     ${all.map(it => {
       const cat = CATS[it.category];
       const isDimmed = !vis.includes(it);
-      return `<div class="tr${isDimmed ? ' dimmed' : ''}" onclick="eraSelect(${it.id})">
+      const isSel = it.id === selId;
+      return `<div class="tr${isDimmed ? ' dimmed' : ''}${isSel ? ' sel' : ''}" data-id="${it.id}" onclick="eraSelect(${it.id})">
         <span style="color:rgba(201,168,76,.8)">${it.agency}</span>
         <span style="color:rgba(255,255,255,.38)">${it.date || '—'}</span>
+        <span>${topicTagsHtml(it.topics, true)}</span>
         <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
         <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
         <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>
         <span>${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,.35);font-size:11px">Open ↗</a>` : '—'}</span>
       </div>`;
     }).join('')}`;
+
+  if (selId) {
+    const row = document.querySelector(`.tr[data-id="${selId}"]`);
+    if (row) row.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
 }
 
 /* ── INTERACTION ───────────────────────────────────────────── */
 window.eraSelect = function(id) {
   selId = selId === id ? null : id;
-  drawRadar(); renderFeed(selId); renderTable();
+  drawRadar(); renderTable();
 };
 
 window.setTopic = function(t) {
   activeTopic = t; selId = null;
-  renderTopicBar(); renderIndex(); drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
+  renderTopicBar(); renderIndex(); drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
 window.setCategory = function(c) {
   activeCategory = c; selId = null;
-  renderIndex(); drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
+  renderIndex(); drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
 window.setSearch = function(q) {
   searchQuery = q; selId = null;
-  drawRadar(); renderFeed(null); renderMetrics(); renderTable(); updateStats();
+  drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
 function setupHover() {
@@ -498,13 +452,13 @@ function setupHover() {
     let hit = null;
     for (const dp of dots) { const dx = dp.x - mx, dy = dp.y - my; if (Math.sqrt(dx*dx+dy*dy) < dp.hr) { hit = dp; break; } }
     cv.style.cursor = hit ? 'pointer' : 'default';
-    document.querySelectorAll('.fi').forEach(el => el.classList.remove('hi'));
+    document.querySelectorAll('.tr[data-id]').forEach(el => el.classList.remove('hi'));
     if (hit && !selId) {
-      const el = document.querySelector(`.fi[data-id="${hit.it.id}"]`);
+      const el = document.querySelector(`.tr[data-id="${hit.it.id}"]`);
       if (el) { el.classList.add('hi'); el.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
     }
   });
-  cv.addEventListener('mouseleave', () => { cv.style.cursor = 'default'; if (!selId) document.querySelectorAll('.fi').forEach(el => el.classList.remove('hi')); });
+  cv.addEventListener('mouseleave', () => { cv.style.cursor = 'default'; if (!selId) document.querySelectorAll('.tr[data-id]').forEach(el => el.classList.remove('hi')); });
   cv.addEventListener('click', e => {
     const rect = cv.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
@@ -518,7 +472,6 @@ async function init() {
   renderIndex();
   renderTopicBar();
   drawRadar();
-  renderFeed(null);
   renderMetrics();
   renderTable();
   updateStats();
