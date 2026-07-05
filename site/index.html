@@ -18,11 +18,18 @@
   .dashboard-top { display: grid; grid-template-columns: 190px 1fr; border-bottom: .5px solid rgba(255,255,255,.06); }
   .radar-panel { position: relative; border-left: .5px solid rgba(255,255,255,.06); }
 
-  .tr { display: grid; grid-template-columns: 72px 88px 110px 100px 1fr 72px 72px; gap: 10px; padding: 8px 0; border-bottom: .5px solid rgba(255,255,255,.05); align-items: start; font-size: 12px; cursor: pointer; }
-  .tr:hover { background: rgba(255,255,255,.025); }
-  .tr.hi, .tr.sel { background: rgba(255,255,255,.04); }
-  .tr.dimmed { opacity: .2; pointer-events: none; }
+  .tr-wrap { border-bottom: .5px solid rgba(255,255,255,.05); }
+  .tr-wrap:last-child { border-bottom: none; }
+  .tr { display: grid; grid-template-columns: 72px 88px 110px 100px 1fr 72px 72px; gap: 10px; padding: 8px 0; align-items: start; font-size: 12px; cursor: pointer; }
+  .tr-wrap:hover .tr { background: rgba(255,255,255,.025); }
+  .tr-wrap.hi .tr, .tr-wrap.sel .tr { background: rgba(255,255,255,.04); }
+  .tr-wrap.dimmed { opacity: .2; pointer-events: none; }
   .th span { color: rgba(255,255,255,.22); text-transform: uppercase; letter-spacing: .07em; font-size: 10px; }
+  .tr-summary { display: none; padding: 0 8px 12px 8px; animation: fadeIn .15s ease; }
+  .tr-wrap.expanded .tr-summary { display: block; }
+  .tr-wrap.expanded .tr { background: rgba(255,255,255,.04); }
+  .tr-summary-inner { background: rgba(255,255,255,.03); border: .5px solid rgba(255,255,255,.08); border-radius: 8px; padding: 12px 16px; margin-top: 2px; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
   .topic-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; letter-spacing: .04em; font-weight: 500; white-space: nowrap; }
   .topic-tags { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -134,6 +141,7 @@ const CATS = {
 const catMap = Object.fromEntries(INDEX_CATS.map(c => [c.id, c]));
 let ITEMS = [];
 let selId = null;
+let expandedId = null;
 let activeTopic = 'all';
 let activeCategory = 'all';
 let searchQuery = '';
@@ -180,6 +188,7 @@ function rawToItem(r, idx) {
     deadline: null,
     link: r.link,
     sourceId: r.source_id || '',
+    ai_summary: r.ai_summary || null,
   };
 }
 
@@ -363,6 +372,18 @@ function renderTopicBar() {
   });
 }
 
+function buildSummaryHtml(it) {
+  if (it.ai_summary) {
+    return `<div class="tr-summary-inner">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px">AI briefing · claude sonnet</div>
+      <p style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.65">${it.ai_summary}</p>
+    </div>`;
+  }
+  return `<div class="tr-summary-inner">
+    <p style="font-size:12px;color:rgba(255,255,255,.28);font-style:italic">No summary yet — add ANTHROPIC_API_KEY and re-run the scraper.</p>
+  </div>`;
+}
+
 function topicTagsHtml(topics, useShort) {
   if (!topics.length) return '<span style="color:rgba(255,255,255,.2)">—</span>';
   return `<span class="topic-tags">${topics.map(t =>
@@ -399,48 +420,59 @@ function renderTable() {
   }
 
   document.getElementById('tb').innerHTML = `
-    <div class="tr th" style="border-bottom:.5px solid rgba(255,255,255,.1);padding-bottom:8px">
+    <div class="tr th" style="border-bottom:.5px solid rgba(255,255,255,.1);padding-bottom:8px;margin-bottom:4px">
       <span>Agency</span><span>Date</span><span>Topics</span><span>Type</span><span>Item</span><span>Urgency</span><span>Link</span>
     </div>
     ${all.map(it => {
       const cat = CATS[it.category];
       const isDimmed = !vis.includes(it);
       const isSel = it.id === selId;
-      return `<div class="tr${isDimmed ? ' dimmed' : ''}${isSel ? ' sel' : ''}" data-id="${it.id}" onclick="eraSelect(${it.id})">
-        <span style="color:rgba(201,168,76,.8)">${it.agency}</span>
-        <span style="color:rgba(255,255,255,.38)">${it.date || '—'}</span>
-        <span>${topicTagsHtml(it.topics, true)}</span>
-        <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
-        <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
-        <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>
-        <span>${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,.35);font-size:11px">Open ↗</a>` : '—'}</span>
+      const isExp = expandedId === it.id;
+      const summaryHtml = isExp ? buildSummaryHtml(it) : '';
+      return `<div class="tr-wrap${isDimmed ? ' dimmed' : ''}${isSel ? ' sel' : ''}${isExp ? ' expanded' : ''}" data-id="${it.id}">
+        <div class="tr" onclick="eraSelect(${it.id})">
+          <span style="color:rgba(201,168,76,.8)">${it.agency}</span>
+          <span style="color:rgba(255,255,255,.38)">${it.date || '—'}</span>
+          <span>${topicTagsHtml(it.topics, true)}</span>
+          <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
+          <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
+          <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>
+          <span>${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,.35);font-size:11px">Open ↗</a>` : '—'}</span>
+        </div>
+        <div class="tr-summary">${summaryHtml}</div>
       </div>`;
     }).join('')}`;
 
-  if (selId) {
-    const row = document.querySelector(`.tr[data-id="${selId}"]`);
+  if (expandedId) {
+    const row = document.querySelector(`.tr-wrap[data-id="${expandedId}"]`);
     if (row) row.scrollIntoView({behavior: 'smooth', block: 'nearest'});
   }
 }
 
 /* ── INTERACTION ───────────────────────────────────────────── */
 window.eraSelect = function(id) {
-  selId = selId === id ? null : id;
+  if (expandedId === id) {
+    expandedId = null;
+    selId = null;
+  } else {
+    expandedId = id;
+    selId = id;
+  }
   drawRadar(); renderTable();
 };
 
 window.setTopic = function(t) {
-  activeTopic = t; selId = null;
+  activeTopic = t; selId = null; expandedId = null;
   renderTopicBar(); renderIndex(); drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
 window.setCategory = function(c) {
-  activeCategory = c; selId = null;
+  activeCategory = c; selId = null; expandedId = null;
   renderIndex(); drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
 window.setSearch = function(q) {
-  searchQuery = q; selId = null;
+  searchQuery = q; selId = null; expandedId = null;
   drawRadar(); renderMetrics(); renderTable(); updateStats();
 };
 
@@ -452,13 +484,13 @@ function setupHover() {
     let hit = null;
     for (const dp of dots) { const dx = dp.x - mx, dy = dp.y - my; if (Math.sqrt(dx*dx+dy*dy) < dp.hr) { hit = dp; break; } }
     cv.style.cursor = hit ? 'pointer' : 'default';
-    document.querySelectorAll('.tr[data-id]').forEach(el => el.classList.remove('hi'));
+    document.querySelectorAll('.tr-wrap[data-id]').forEach(el => el.classList.remove('hi'));
     if (hit && !selId) {
-      const el = document.querySelector(`.tr[data-id="${hit.it.id}"]`);
+      const el = document.querySelector(`.tr-wrap[data-id="${hit.it.id}"]`);
       if (el) { el.classList.add('hi'); el.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
     }
   });
-  cv.addEventListener('mouseleave', () => { cv.style.cursor = 'default'; if (!selId) document.querySelectorAll('.tr[data-id]').forEach(el => el.classList.remove('hi')); });
+  cv.addEventListener('mouseleave', () => { cv.style.cursor = 'default'; if (!selId) document.querySelectorAll('.tr-wrap[data-id]').forEach(el => el.classList.remove('hi')); });
   cv.addEventListener('click', e => {
     const rect = cv.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;

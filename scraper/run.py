@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fetch_all import fetch_all as fetch_sources
 from keywords import matches_tracker_item
 from normalize import dedupe_key, normalize_date
+from summarize import fetch_summaries
 
 OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "site", "data", "feed.json")
 RETENTION_DAYS = 30
@@ -78,8 +79,12 @@ def main():
     pruned.sort(key=lambda i: i.get("published_iso") or "", reverse=True)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+
+    # Write before summarization so the file exists for incremental saves
     with open(OUT_PATH, "w") as f:
         json.dump(pruned, f, indent=2)
+
+    pruned = fetch_summaries(pruned, OUT_PATH)
 
     print(
         f"[{datetime.now().isoformat()}] wrote {len(pruned)} items "

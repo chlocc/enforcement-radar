@@ -31,6 +31,7 @@ jobs:
 
       - name: Fetch regulatory feed
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REGULATIONS_API_KEY: ${{ secrets.REGULATIONS_API_KEY }}
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
         run: python3 scraper/run.py
