@@ -20,7 +20,7 @@
 
   .tr-wrap { border-bottom: .5px solid rgba(255,255,255,.05); }
   .tr-wrap:last-child { border-bottom: none; }
-  .tr { display: grid; grid-template-columns: 72px 88px 110px 100px 1fr 72px 72px; gap: 10px; padding: 8px 0; align-items: start; font-size: 12px; cursor: pointer; }
+  .tr { display: grid; grid-template-columns: 72px 88px 110px 100px 1fr 80px; gap: 10px; padding: 8px 0; align-items: start; font-size: 12px; cursor: pointer; }
   .tr-wrap:hover .tr { background: rgba(255,255,255,.025); }
   .tr-wrap.hi .tr, .tr-wrap.sel .tr { background: rgba(255,255,255,.04); }
   .tr-wrap.dimmed { opacity: .2; pointer-events: none; }
@@ -395,7 +395,7 @@ function topicTagsHtml(topics, useShort) {
 function renderMetrics() {
   const vis = visibleItems();
   const mc = [
-    {n: vis.filter(i => i.urgency === 'high').length, label: 'High urgency', c: '#E24B4A'},
+    {n: vis.length, label: 'Items in window', c: '#888780'},
     {n: vis.filter(i => i.category === 'proposed-rule').length, label: 'NPRMs open', c: '#EF9F27'},
     {n: vis.filter(i => i.category === 'final-rule').length, label: 'Final rules', c: '#5DCAA5'},
     {n: vis.filter(i => i.category === 'enforcement' || i.category === 'litigation').length, label: 'Enforcement / litigation', c: '#F09595'},
@@ -412,7 +412,6 @@ function renderMetrics() {
 function renderTable() {
   const vis = visibleItems();
   const all = [...ITEMS].sort((a, b) => (a.daysAgo ?? WINDOW_DAYS) - (b.daysAgo ?? WINDOW_DAYS) || a.agency.localeCompare(b.agency));
-  const uc = {high: '#E24B4A', medium: '#EF9F27', low: '#5DCAA5'};
 
   if (ITEMS.length === 0) {
     document.getElementById('tb').innerHTML = `<div class="empty-state">No data yet.<br><br>Run <code>python3 scraper/run.py</code> from the repo root to fetch sources into <code>site/data/feed.json</code>.</div>`;
@@ -421,7 +420,7 @@ function renderTable() {
 
   document.getElementById('tb').innerHTML = `
     <div class="tr th" style="border-bottom:.5px solid rgba(255,255,255,.1);padding-bottom:8px;margin-bottom:4px">
-      <span>Agency</span><span>Date</span><span>Topics</span><span>Type</span><span>Item</span><span>Urgency</span><span>Link</span>
+      <span>Agency</span><span>Date</span><span>Topics</span><span>Type</span><span>Item</span><span>Link</span>
     </div>
     ${all.map(it => {
       const cat = CATS[it.category];
@@ -436,7 +435,6 @@ function renderTable() {
           <span>${topicTagsHtml(it.topics, true)}</span>
           <span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${cat.color}18;color:${cat.color}CC;border:.5px solid ${cat.color}35;white-space:nowrap">${cat.label}</span></span>
           <span style="color:rgba(255,255,255,.82);line-height:1.4;white-space:normal">${it.title}</span>
-          <span><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${uc[it.urgency]};margin-right:5px;vertical-align:middle"></span><span style="color:rgba(255,255,255,.45)">${it.urgency}</span></span>
           <span>${it.link ? `<a href="${it.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,.35);font-size:11px">Open ↗</a>` : '—'}</span>
         </div>
         <div class="tr-summary">${summaryHtml}</div>
