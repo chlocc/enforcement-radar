@@ -9,6 +9,8 @@ The site is a static build: run the scraper, publish the `site/` folder.
    - **Build:** `pip install -r requirements.txt && python3 scraper/run.py`
    - **Publish:** `site`
 3. Optional env vars (Site settings → Environment variables):
+   - `OPENROUTER_API_KEY` — AI briefing summaries
+   - `OPENROUTER_MODEL` — optional; defaults to `openrouter/free`
    - `CONGRESS_API_KEY` — Congress.gov bills (defaults to `DEMO_KEY`)
    - `REGULATIONS_API_KEY` — Regulations.gov (defaults to `DEMO_KEY`)
 
@@ -32,8 +34,13 @@ Live URL: `https://chlocc.github.io/enforcement-radar/`
 
 | Secret | Purpose |
 |--------|---------|
+| `OPENROUTER_API_KEY` | AI briefing summaries ([create a key](https://openrouter.ai/keys)) |
 | `CONGRESS_API_KEY` | Congress.gov API (omit to use `DEMO_KEY`) |
 | `REGULATIONS_API_KEY` | Regulations.gov API (omit to use `DEMO_KEY`) |
+
+**Important:** If you add these as GitHub Actions secrets, leave them unset rather than saving empty values — empty secrets override the `DEMO_KEY` fallback and cause 403 errors.
+
+Set the optional `OPENROUTER_MODEL` repository variable to choose a specific model. If omitted, the workflow uses `openrouter/free`, which routes each request to an available free model.
 
 ---
 

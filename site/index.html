@@ -188,7 +188,10 @@ function rawToItem(r, idx) {
     deadline: null,
     link: r.link,
     sourceId: r.source_id || '',
+    sourceSummary: r.summary || null,
     ai_summary: r.ai_summary || null,
+    aiProvider: r.ai_provider || 'Claude Sonnet',
+    aiModel: r.ai_model || '',
   };
 }
 
@@ -372,15 +375,28 @@ function renderTopicBar() {
   });
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  })[ch]);
+}
+
 function buildSummaryHtml(it) {
   if (it.ai_summary) {
+    const provider = it.aiModel ? `${it.aiProvider} · ${it.aiModel}` : it.aiProvider;
     return `<div class="tr-summary-inner">
-      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px">AI briefing · claude sonnet</div>
-      <p style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.65">${it.ai_summary}</p>
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px">AI briefing · ${escapeHtml(provider)}</div>
+      <p style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.65">${escapeHtml(it.ai_summary)}</p>
+    </div>`;
+  }
+  if (it.sourceSummary) {
+    return `<div class="tr-summary-inner">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px">Official source summary</div>
+      <p style="font-size:13px;color:rgba(255,255,255,.78);line-height:1.65">${escapeHtml(it.sourceSummary)}</p>
     </div>`;
   }
   return `<div class="tr-summary-inner">
-    <p style="font-size:12px;color:rgba(255,255,255,.28);font-style:italic">No summary yet — add ANTHROPIC_API_KEY and re-run the scraper.</p>
+    <p style="font-size:12px;color:rgba(255,255,255,.28);font-style:italic">No summary is available from the official source.</p>
   </div>`;
 }
 
